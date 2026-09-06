@@ -1,0 +1,102 @@
+{
+  "entities": {
+    "Room": {
+      "title": "Room",
+      "description": "A real-time messaging room identified by a unique room ID.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique identifier for the room."
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Display name of the chat room."
+        },
+        "createdBy": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "UID of the user who created the room."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp when the room was created."
+        },
+        "lastMessage": {
+          "type": "string",
+          "maxLength": 4000,
+          "description": "Content preview of the most recent message."
+        },
+        "lastMessageSender": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Display name of the user who sent the latest message."
+        }
+      },
+      "required": ["id", "name", "createdBy", "createdAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "An instant message sent within a specific room.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique identifier for the message document."
+        },
+        "roomId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "ID of the parent room this message belongs to."
+        },
+        "senderId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "UID of the message sender."
+        },
+        "senderName": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Display name or alias of the message sender."
+        },
+        "clientId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Client session or tab ID to distinguish multi-window sessions."
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 4000,
+          "description": "Message body text, either plaintext or end-to-end encrypted payload."
+        },
+        "isEncrypted": {
+          "type": "boolean",
+          "description": "Flag indicating if the text is encrypted with the room key."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of message creation."
+        }
+      },
+      "required": ["id", "roomId", "senderId", "senderName", "clientId", "text", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/rooms/{roomId}": {
+      "schema": "Room",
+      "description": "Collection of active chat rooms identified by room ID."
+    },
+    "/rooms/{roomId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Real-time messages sent within the chat room."
+    }
+  }
+}

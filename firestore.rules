@@ -1,0 +1,90 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Room validation helper
+    function isValidRoom(data) {
+      return data.id is string && isValidId(data.id) &&
+        data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+        data.createdBy is string && data.createdBy.size() > 0 && data.createdBy.size() <= 128 &&
+        data.createdBy == request.auth.uid &&
+        (!('lastMessage' in data) || (data.lastMessage is string && data.lastMessage.size() <= 4000)) &&
+        (!('lastMessageSender' in data) || (data.lastMessageSender is string && data.lastMessageSender.size() <= 100));
+    }
+
+    // Message validation helper
+    function isValidMessage(data, expectedRoomId) {
+      return data.id is string && isValidId(data.id) &&
+        data.roomId is string && data.roomId == expectedRoomId &&
+        data.senderId is string && data.senderId == request.auth.uid &&
+        data.senderName is string && data.senderName.size() > 0 && data.senderName.size() <= 100 &&
+        data.clientId is string && data.clientId.size() > 0 && data.clientId.size() <= 128 &&
+        data.text is string && data.text.size() > 0 && data.text.size() <= 4000 &&
+        (!('isEncrypted' in data) || data.isEncrypted is bool);
+    }
+
+    // Match rooms
+    match /rooms/{roomId} {
+      allow get: if isSignedIn() && isValidId(roomId);
+      allow list: if isSignedIn();
+
+      allow create: if isSignedIn() && isValidId(roomId) &&
+        incoming().id == roomId &&
+        incoming().createdAt == request.time &&
+        isValidRoom(incoming()) &&
+        incoming().keys().hasAll(['id', 'name', 'createdBy', 'createdAt']) &&
+        incoming().keys().size() >= 4 && incoming().keys().size() <= 6;
+
+      allow update: if isSignedIn() && isValidId(roomId) &&
+        incoming().id == existing().id &&
+        incoming().createdBy == existing().createdBy &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['lastMessage', 'lastMessageSender']) &&
+        (!('lastMessage' in incoming()) || (incoming().lastMessage is string && incoming().lastMessage.size() <= 4000)) &&
+        (!('lastMessageSender' in incoming()) || (incoming().lastMessageSender is string && incoming().lastMessageSender.size() <= 100));
+
+      allow delete: if isSignedIn() && isValidId(roomId) && existing().createdBy == request.auth.uid;
+
+      // Subcollection: messages
+      match /messages/{messageId} {
+        allow get: if isSignedIn() && isValidId(roomId) && isValidId(messageId);
+        allow list: if isSignedIn() && isValidId(roomId);
+
+        allow create: if isSignedIn() && isValidId(roomId) && isValidId(messageId) &&
+          incoming().id == messageId &&
+          incoming().roomId == roomId &&
+          incoming().createdAt == request.time &&
+          exists(/databases/$(database)/documents/rooms/$(roomId)) &&
+          isValidMessage(incoming(), roomId) &&
+          incoming().keys().hasAll(['id', 'roomId', 'senderId', 'senderName', 'clientId', 'text', 'createdAt']) &&
+          incoming().keys().size() >= 7 && incoming().keys().size() <= 8;
+
+        allow update: if false;
+
+        allow delete: if isSignedIn() && isValidId(roomId) && isValidId(messageId) &&
+          existing().senderId == request.auth.uid;
+      }
+    }
+  }
+}

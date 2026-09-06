@@ -1,0 +1,6 @@
+{
+  "name": "Room Messenger",
+  "description": "Real-time room messaging application with instant end-to-end communication via Firebase Firestore.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
